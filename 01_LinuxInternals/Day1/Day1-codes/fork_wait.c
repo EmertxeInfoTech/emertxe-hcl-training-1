@@ -8,6 +8,7 @@ int main() {
     if (pid == 0) {
         // Child process
         printf("Child process: PID = %d\n", getpid());
+        sleep(3); // Addding delay for child process
     } else {
         // Parent process
         wait(NULL);  // Wait for child process to finish
