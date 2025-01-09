@@ -3,7 +3,7 @@
 #include <pthread.h>
 
 void *thread_function(void *arg) {
-    int count = 10000;
+    int count = 100;
     while(count--) {
         printf("Thread running...\n");
     }

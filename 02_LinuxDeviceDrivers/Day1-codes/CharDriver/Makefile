@@ -1,8 +1,11 @@
 # If called directly from the command line, invoke the kernel build system.
-ifeq ($(KERNELRELEASE),)
+SRC_FILES := $(wildcard *.c)
+OBJ_FILES := $(patsubst %.c,%.o,$(SRC_FILES))
 
-	KERNEL_SOURCE := /usr/src/linux-headers-`uname -r`
-	PWD := $(shell pwd)
+
+KERNEL_SOURCE := /usr/src/linux-headers-`uname -r`
+PWD := $(shell pwd)
+
 default:
 	$(MAKE) -C $(KERNEL_SOURCE) M=$(PWD) modules
 
@@ -11,11 +14,7 @@ clean:
 
 # Otherwise KERNELRELEASE is defined; we've been invoked from the
 # kernel build system and can use its language.
-else
+#obj-m := $(patsubst %.c,%.o,$(wildcard *.c))
+obj-m += $(patsubst %.c,%.o,$(SRC_FILES))
 
-	src-m := $(notdir $(wildcard ${SUBDIRS}/*.c))
-	src-mod := $(notdir $(wildcard ${SUBDIRS}/*.mod.c))
-	src-m := $(filter-out ${src-mod}, ${src-m})
-	obj-m := $(src-m:.c=.o)
-
-endif
+#obj-m += final_char_driver.o first_char_driver.o mem_ioctl.o

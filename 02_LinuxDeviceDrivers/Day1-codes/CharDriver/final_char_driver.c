@@ -81,7 +81,7 @@ static int __init fcd_init(void)
 	return ret;
     }
 
-    if (IS_ERR(cl = class_create(THIS_MODULE, "char")))
+    if (IS_ERR(cl = class_create("char")))
     {
 	cdev_del(&c_dev);
 	unregister_chrdev_region(dev, MINOR_CNT);

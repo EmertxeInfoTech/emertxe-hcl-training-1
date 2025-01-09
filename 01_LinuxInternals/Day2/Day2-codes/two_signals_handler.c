@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include <signal.h>
+#include <unistd.h>
 
 void handle_signal(int signal) {
     if (signal == SIGINT) {
