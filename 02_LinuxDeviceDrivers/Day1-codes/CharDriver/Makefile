@@ -15,6 +15,6 @@ clean:
 # Otherwise KERNELRELEASE is defined; we've been invoked from the
 # kernel build system and can use its language.
 #obj-m := $(patsubst %.c,%.o,$(wildcard *.c))
-obj-m += $(patsubst %.c,%.o,$(SRC_FILES))
+#obj-m += $(patsubst %.c,%.o,$(SRC_FILES))
 
-#obj-m += final_char_driver.o first_char_driver.o mem_ioctl.o
+obj-m += final_char_driver.o first_char_driver.o mem_ioctl.o
