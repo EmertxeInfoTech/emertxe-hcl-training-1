@@ -4,28 +4,31 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-
-#define DEVICE_FILE "/dev/mychar0"
-#define BUFFER_SIZE 1024
+#include <sys/ioctl.h>
+#include "driver.h" // Include the header file
 
 int main() {
     int fd = -1;
     int choice;
     char buffer[BUFFER_SIZE];
+    int buffer_size;
 
     do {
         printf("\nMenu:\n");
         printf("1. Open Device\n");
         printf("2. Write to Device\n");
         printf("3. Read from Device\n");
-        printf("4. Close Device\n");
-        printf("5. Exit\n");
+        printf("4. Reset Buffer (IOCTL)\n");
+        printf("5. Get Buffer Size (IOCTL)\n");
+        printf("6. Set Buffer Size (IOCTL)\n");
+        printf("7. Close Device\n");
+        printf("8. Exit\n");
         printf("Enter your choice: ");
         scanf("%d", &choice);
         getchar(); // Consume newline character left in the buffer
 
         switch (choice) {
-            case 1:
+            case MENU_OPEN_DEVICE:
                 if (fd >= 0) {
                     printf("Device already opened.\n");
                 } else {
@@ -38,7 +41,7 @@ int main() {
                 }
                 break;
 
-            case 2:
+            case MENU_WRITE_DEVICE:
                 if (fd < 0) {
                     printf("Please open the device first.\n");
                 } else {
@@ -55,7 +58,7 @@ int main() {
                 }
                 break;
 
-            case 3:
+            case MENU_READ_DEVICE:
                 if (fd < 0) {
                     printf("Please open the device first.\n");
                 } else {
@@ -79,7 +82,47 @@ int main() {
                 }
                 break;
 
-            case 4:
+            case MENU_IOCTL_RESET:
+                if (fd < 0) {
+                    printf("Please open the device first.\n");
+                } else {
+                    if (ioctl(fd, IOCTL_RESET_BUFFER) < 0) {
+                        perror("Failed to reset buffer");
+                    } else {
+                        printf("Buffer reset successfully.\n");
+                    }
+                }
+                break;
+
+            case MENU_IOCTL_GET_SIZE:
+                if (fd < 0) {
+                    printf("Please open the device first.\n");
+                } else {
+                    if (ioctl(fd, IOCTL_GET_BUFFER_SIZE, &buffer_size) < 0) {
+                        perror("Failed to get buffer size");
+                    } else {
+                        printf("Current buffer size: %d bytes\n", buffer_size);
+                    }
+                }
+                break;
+
+            case MENU_IOCTL_SET_SIZE:
+                if (fd < 0) {
+                    printf("Please open the device first.\n");
+                } else {
+                    printf("Enter new buffer size: ");
+                    scanf("%d", &buffer_size);
+                    getchar(); // Consume newline character
+
+                    if (ioctl(fd, IOCTL_SET_BUFFER_SIZE, &buffer_size) < 0) {
+                        perror("Failed to set buffer size");
+                    } else {
+                        printf("Buffer size set to: %d bytes\n", buffer_size);
+                    }
+                }
+                break;
+
+            case MENU_CLOSE_DEVICE:
                 if (fd < 0) {
                     printf("Device is not open.\n");
                 } else {
@@ -92,7 +135,7 @@ int main() {
                 }
                 break;
 
-            case 5:
+            case MENU_EXIT:
                 if (fd >= 0) {
                     printf("Closing the device before exiting...\n");
                     if (close(fd) < 0) {
@@ -107,7 +150,7 @@ int main() {
             default:
                 printf("Invalid choice. Please try again.\n");
         }
-    } while (choice != 5);
+    } while (choice != MENU_EXIT);
 
     return 0;
 }
