@@ -16,7 +16,7 @@ int main()
         int32_t value, number;
  
         printf("\nOpening Driver\n");
-        fd = open("/dev/etx_device", O_RDWR);
+        fd = open("/dev/emx_device", O_RDWR);
         if(fd < 0) {
                 printf("Cannot open device file...\n");
                 return 0;
