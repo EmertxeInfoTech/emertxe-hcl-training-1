@@ -1,169 +1,163 @@
-#include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/module.h>
-#include <linux/kdev_t.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
-#include<linux/slab.h>                 //kmalloc()
-#include<linux/uaccess.h>              //copy_to/from_user()
-#include <linux/ioctl.h>
-#include <linux/err.h>
- 
- 
-#define WR_VALUE _IOW('a','a',int32_t*)
-#define RD_VALUE _IOR('a','b',int32_t*)
- 
-int32_t value = 0;
- 
-dev_t dev = 0;
-static struct class *dev_class;
-static struct cdev emx_cdev;
+#include <linux/errno.h>
+#include <linux/uaccess.h>
 
-/*
-** Function Prototypes
-*/
-static int      __init emx_driver_init(void);
-static void     __exit emx_driver_exit(void);
-static int      emx_open(struct inode *inode, struct file *file);
-static int      emx_release(struct inode *inode, struct file *file);
-static ssize_t  emx_read(struct file *filp, char __user *buf, size_t len,loff_t * off);
-static ssize_t  emx_write(struct file *filp, const char *buf, size_t len, loff_t * off);
-static long     emx_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+#define FIRST_MINOR 0
+#define MINOR_CNT 1
 
-/*
-** File operation sturcture
-*/
-static struct file_operations fops =
+#define MAX_SIZE 1000
+
+// Define ioctl commands
+#define IOCTL_RESET_BUFFER _IO('a', 1)
+#define IOCTL_GET_BUFFER_SIZE _IOR('a', 2, int)
+#define IOCTL_SET_BUFFER_SIZE _IOW('a', 3, int)
+
+static dev_t dev;
+static struct cdev c_dev;
+static struct class *cl;
+
+static char k_buf[MAX_SIZE];
+static int buffer_size = MAX_SIZE;
+
+static int my_open(struct inode *i, struct file *f)
 {
-        .owner          = THIS_MODULE,
-        .read           = emx_read,
-        .write          = emx_write,
-        .open           = emx_open,
-        .unlocked_ioctl = emx_ioctl,
-        .release        = emx_release,
+    printk(KERN_INFO "Driver: Open\n");
+    return 0;
+}
+
+static int my_close(struct inode *i, struct file *f)
+{
+    printk(KERN_INFO "Driver: Close\n");
+    return 0;
+}
+
+static ssize_t my_read(struct file *f, char __user *buf, size_t len, loff_t *off)
+{
+    printk(KERN_INFO "Driver: In read\n");
+
+    if (*off + len > buffer_size)
+    {
+        printk(KERN_WARNING "In read: Not enough data available\n");
+        return 0;
+    }
+
+    if (copy_to_user(buf, k_buf + *off, len))
+    {
+        return -EFAULT;
+    }
+
+    printk(KERN_INFO "%zu bytes read\n", len);
+    *off = *off + len;
+    return len;
+}
+
+static ssize_t my_write(struct file *f, const char __user *buf, size_t len, loff_t *off)
+{
+    printk(KERN_INFO "Driver: In write\n");
+
+    if (copy_from_user(k_buf, buf, len))
+    {
+        return -EFAULT;
+    }
+
+    printk(KERN_INFO "%zu bytes written\n", len);
+    buffer_size = len;
+    return len;
+}
+
+// Implement ioctl function
+static long my_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
+{
+    switch (cmd)
+    {
+    case IOCTL_RESET_BUFFER:
+        memset(k_buf, 0, buffer_size);
+        printk(KERN_INFO "Buffer reset\n");
+        break;
+
+    case IOCTL_GET_BUFFER_SIZE:
+        if (copy_to_user((int __user *)arg, &buffer_size, sizeof(buffer_size)))
+        {
+            return -EFAULT;
+        }
+        printk(KERN_INFO "Buffer size sent to user: %d\n", buffer_size);
+        break;
+
+    case IOCTL_SET_BUFFER_SIZE:
+        if (copy_from_user(&buffer_size, (int __user *)arg, sizeof(buffer_size)))
+        {
+            return -EFAULT;
+        }
+        printk(KERN_INFO "Buffer size set to: %d\n", buffer_size);
+        break;
+
+    default:
+        return -EINVAL;
+    }
+    return 0;
+}
+
+static struct file_operations driver_fops = {
+    .owner = THIS_MODULE,
+    .open = my_open,
+    .release = my_close,
+    .read = my_read,
+    .write = my_write,
+    .unlocked_ioctl = my_ioctl, // Add ioctl support
 };
 
-/*
-** This function will be called when we open the Device file
-*/
-static int emx_open(struct inode *inode, struct file *file)
+static int __init fcd_init(void)
 {
-        pr_info("Device File Opened...!!!\n");
-        return 0;
+    int ret;
+    struct device *dev_ret;
+
+    if ((ret = alloc_chrdev_region(&dev, FIRST_MINOR, MINOR_CNT, "final_driver")) < 0)
+    {
+        return ret;
+    }
+
+    cdev_init(&c_dev, &driver_fops);
+
+    if ((ret = cdev_add(&c_dev, dev, MINOR_CNT)) < 0)
+    {
+        unregister_chrdev_region(dev, MINOR_CNT);
+        return ret;
+    }
+
+    if (IS_ERR(cl = class_create(THIS_MODULE, "char")))
+    {
+        cdev_del(&c_dev);
+        unregister_chrdev_region(dev, MINOR_CNT);
+        return PTR_ERR(cl);
+    }
+
+    if (IS_ERR(dev_ret = device_create(cl, NULL, dev, NULL, "mychar%d", 0)))
+    {
+        class_destroy(cl);
+        cdev_del(&c_dev);
+        unregister_chrdev_region(dev, MINOR_CNT);
+        return PTR_ERR(dev_ret);
+    }
+
+    printk(KERN_INFO "Driver initialized\n");
+    return 0;
 }
 
-/*
-** This function will be called when we close the Device file
-*/
-static int emx_release(struct inode *inode, struct file *file)
+static void __exit fcd_exit(void)
 {
-        pr_info("Device File Closed...!!!\n");
-        return 0;
+    device_destroy(cl, dev);
+    class_destroy(cl);
+    cdev_del(&c_dev);
+    unregister_chrdev_region(dev, MINOR_CNT);
+    printk(KERN_INFO "Driver removed\n");
 }
 
-/*
-** This function will be called when we read the Device file
-*/
-static ssize_t emx_read(struct file *filp, char __user *buf, size_t len, loff_t *off)
-{
-        pr_info("Read Function\n");
-        return 0;
-}
+module_init(fcd_init);
+module_exit(fcd_exit);
 
-/*
-** This function will be called when we write the Device file
-*/
-static ssize_t emx_write(struct file *filp, const char __user *buf, size_t len, loff_t *off)
-{
-        pr_info("Write function\n");
-        return len;
-}
-
-/*
-** This function will be called when we write IOCTL on the Device file
-*/
-static long emx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-         switch(cmd) {
-                case WR_VALUE:
-                        if( copy_from_user(&value ,(int32_t*) arg, sizeof(value)) )
-                        {
-                                pr_err("Data Write : Err!\n");
-                        }
-                        pr_info("Value = %d\n", value);
-                        break;
-                case RD_VALUE:
-                        if( copy_to_user((int32_t*) arg, &value, sizeof(value)) )
-                        {
-                                pr_err("Data Read : Err!\n");
-                        }
-                        break;
-                default:
-                        pr_info("Default\n");
-                        break;
-        }
-        return 0;
-}
- 
-/*
-** Module Init function
-*/
-static int __init emx_driver_init(void)
-{
-        /*Allocating Major number*/
-        if((alloc_chrdev_region(&dev, 0, 1, "emx_Dev")) <0){
-                pr_err("Cannot allocate major number\n");
-                return -1;
-        }
-        pr_info("Major = %d Minor = %d \n",MAJOR(dev), MINOR(dev));
- 
-        /*Creating cdev structure*/
-        cdev_init(&emx_cdev,&fops);
- 
-        /*Adding character device to the system*/
-        if((cdev_add(&emx_cdev,dev,1)) < 0){
-            pr_err("Cannot add the device to the system\n");
-            goto r_class;
-        }
- 
-        /*Creating struct class*/
-        if(IS_ERR(dev_class = class_create("emx_class"))){
-            pr_err("Cannot create the struct class\n");
-            goto r_class;
-        }
- 
-        /*Creating device*/
-        if(IS_ERR(device_create(dev_class,NULL,dev,NULL,"emx_device"))){
-            pr_err("Cannot create the Device 1\n");
-            goto r_device;
-        }
-        pr_info("Device Driver Insert...Done!!!\n");
-        return 0;
- 
-r_device:
-        class_destroy(dev_class);
-r_class:
-        unregister_chrdev_region(dev,1);
-        return -1;
-}
-
-/*
-** Module exit function
-*/
-static void __exit emx_driver_exit(void)
-{
-        device_destroy(dev_class,dev);
-        class_destroy(dev_class);
-        cdev_del(&emx_cdev);
-        unregister_chrdev_region(dev, 1);
-        pr_info("Device Driver Remove...Done!!!\n");
-}
- 
-module_init(emx_driver_init);
-module_exit(emx_driver_exit);
- 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Emertxe <training@emertxe.com>");
-MODULE_DESCRIPTION("Simple Linux device driver (IOCTL)");
-MODULE_VERSION("1.5");
+MODULE_AUTHOR("Emertxe Info Tech <embedded.courses@emertxe.com>");
+MODULE_DESCRIPTION("A Character Driver with IOCTL support");
