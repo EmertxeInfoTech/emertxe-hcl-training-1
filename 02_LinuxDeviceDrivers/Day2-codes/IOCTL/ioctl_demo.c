@@ -128,7 +128,7 @@ static int __init emx_driver_init(void)
         }
  
         /*Creating struct class*/
-        if(IS_ERR(dev_class = class_create(THIS_MODULE,"emx_class"))){
+        if(IS_ERR(dev_class = class_create("emx_class"))){
             pr_err("Cannot create the struct class\n");
             goto r_class;
         }
