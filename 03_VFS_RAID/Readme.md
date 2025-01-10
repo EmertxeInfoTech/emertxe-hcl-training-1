@@ -2,10 +2,15 @@
 
 ## Commands Used
 lsblk
+
 mkfs
+
 mount
+
 fdisk
+
 fsck
+
 mdadm
 
 
