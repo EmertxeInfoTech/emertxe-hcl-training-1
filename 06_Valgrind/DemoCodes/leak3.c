@@ -8,7 +8,7 @@ struct numbers
 };
 
 int n;
-struct numbers *numbers;
+struct numbers *number;
 
 void create_numbers (struct numbers **nrs, int *n)
 {
@@ -28,19 +28,21 @@ void create_numbers (struct numbers **nrs, int *n)
 void output_report ()
 { 
   puts ("numbers"); 
-  for (int i = 0; i < numbers->n; i++)
-    printf ("Number: %d\n", numbers->nums[i]);
+  for (int i = 0; i < number->n; i++)
+    printf ("Number: %d\n", number->nums[i]);
   printf ("\n");
 }
 
 int main ()
 { 
-  create_numbers (&numbers, &n);
-  
+  create_numbers (&number, &n);
+  struct numbers *temp = number;
+
   for (int i = 0; i < n; i++)
     {
       output_report ();
-      numbers++;
+      number++;
     }
+    free(temp);
     return 0;
 }
