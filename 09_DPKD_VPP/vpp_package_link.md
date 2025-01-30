@@ -1,4 +1,4 @@
-# VPP intstall instructions
+# VPP install instructions
 
 Note: DPDK is a dependency
 
@@ -32,3 +32,7 @@ sudo dpkg -i *.deb
 Link 1: https://test1.emertxe.com/vpp/vpp_deb_packages.zip
 
 Link 2 (Alternate): https://drive.google.com/file/d/1EqMQmb6iy77-zR537vmZZIFQbrVlw9ZM/view?usp=drive_link
+
+## References
+https://s3-docs.fd.io/vpp/25.02/gettingstarted/installing/index.html
+
